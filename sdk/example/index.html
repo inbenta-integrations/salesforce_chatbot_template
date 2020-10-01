@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+    <meta http-equiv="X-UA-Compatible" content="ie=edge"/>
+    <meta http-equiv="Content-type" content="text/html; charset=utf-8"/>
+    <title>Inbenta Demo</title>
+    <link rel="shortcut icon" href="#"/>
+    <link rel="stylesheet" href="styles.css">
+    <script type="text/javascript" src="../adapter/salesforce-connector-adapter.js"></script>
+    <script src="https://sdk.inbenta.io/chatbot/1.40.0/inbenta-chatbot-sdk.js" integrity="sha384-/C3ksMEMVNtIQ0YQt1Sfh7lAnTb5brXIWka4Ur9AtYt3e//TaEfSaPXkBmlXqcRv"  crossorigin="anonymous"></script>
+    <script type="text/javascript">
+
+        // Inbenta Chatbot SDK authentication
+        // More info: https://developers.inbenta.io/chatbot/javascript-sdk/sdk-setup
+        let sdkAuth = {
+            inbentaKey: '',
+            domainKey:  ''
+        }
+
+        // Salesforce connector adapter configuration
+        let salesforceConf = {
+            endpoint: '', // Saleforce Live Agent connector endpoint
+            agentName: 'Agent', // agent name if there's no name set in Salesforce
+            agentWaitTimeout: 60, // time to wait for an agent to connect (in seconds)
+        }
+
+        // Inbenta Chatbot SDK configuration
+        // More info: https://developers.inbenta.io/chatbot/javascript-sdk/sdk-configuration
+        let sdkConf = {
+            chatbotId: '', // chatbot identification
+            environment: 'development', // chatbot environment
+            closeButton: { visible: true }, // enable close button
+            adapters: [window.salesforceConnectorAdapter(salesforceConf)]
+        }
+
+        // Initiate Chatbot
+        InbentaChatbotSDK.buildWithDomainCredentials(sdkAuth, sdkConf);
+    </script>
+  </head>
+  <body class="inb-demo">
+  <header class="inb-demo__header">
+    <div class="inb-demo__header__title">
+      <a href="https://www.inbenta.com" target="_blank"><img class="inb-demo__header__image" src="https://www.inbenta.com/wp-content/themes/inbenta/img/logo-inbenta.svg" alt="Inbenta"></a>
+    </div>
+    </header>
+    <main class="inb-demo__main">
+      <div class="inb-demo__main__content">
+        <h1 class="inb-demo__title">Demo - Salesforce connector adapter</h1>
+      </div>
+    </main>
+  </body>
+</html>
