@@ -30,7 +30,13 @@
         agentWaitTimeout: 60, // seconds
         sendMessagesTimeout: 30, // seconds
         sendMessagesDelay: 2, // seconds
-        inputId: '#inbenta-bot-input'
+        inputId: '#inbenta-bot-input',
+        labels: {
+          waitingForFile: 'Agent is requesting you a file (click on link icon)',
+          uploadingFile: 'Uploading file, please wait',
+          fileUploaded: 'File uploaded correctly',
+          fileUploadError: 'Error on file upload'
+        }
       }
 
       let config = extend(defaultSalesforceConf, salesforceConf);
@@ -43,7 +49,14 @@
         auth: domain + '/init',
         getMessage: domain + '/message/receive',
         sendMessage: domain + '/message/send',
-        availability: domain + '/availability'
+        availability: domain + '/availability',
+        sendFile: domain + '/message/file'
+      };
+
+      // File transfer variables
+      let fileTransfer = {
+        fileToken: '',
+        uploadServletUrl: ''
       };
 
       // Define Chatbot messages to be used
@@ -84,6 +97,26 @@
             type: 'answer',
             message: 'enter-question',
             translate: true
+          });
+        },
+        waitingForFile: function() {
+          chatbot.actions.displaySystemMessage({
+            message: defaultSalesforceConf.labels.waitingForFile
+          });
+        },
+        uploadingFile: function() {
+          chatbot.actions.displaySystemMessage({
+            message: defaultSalesforceConf.labels.uploadingFile
+          });
+        },
+        fileUploaded: function() {
+          chatbot.actions.displaySystemMessage({
+            message: defaultSalesforceConf.labels.fileUploaded
+          });
+        },
+        fileUploadError: function() {
+          chatbot.actions.displaySystemMessage({
+            message: defaultSalesforceConf.labels.fileUploadError
           });
         }
       }
@@ -327,6 +360,7 @@
                     case 'AgentDisconnect':
                     case 'ChatEnded':
                       endChatSession(true, 'Reason: Adapter received "ChatEnded" response from Salesforce');
+                      chatbot.actions.hideUploadMediaButton();
                       chatbotMessage.agentLeft();
                       chatbotMessage.chatClosed();
                       chatbotMessage.enterQuestion();
@@ -335,6 +369,17 @@
                       chatbotMessage.agentLeft();
                       AgentSession.set('name', message.message.name);
                       chatbotMessage.agentJoined();
+                      break;
+                    case 'FileTransfer':
+                      if (message.message.type == 'Requested') {
+                        setFileTransferOptions(message.message.fileToken, message.message.uploadServletUrl);
+                        chatbot.actions.showUploadMediaButton();
+                        chatbotMessage.waitingForFile();
+                      }
+                      else { //File transfer canceled or completed
+                        setFileTransferOptions('', '');
+                        chatbot.actions.hideUploadMediaButton();
+                      }
                       break;
                     case 'ChasitorSessionData':
                     case 'ChatRequestSuccess':
@@ -484,6 +529,14 @@
         sendMessageToLiveAgent(message)
       };
 
+      // Define file transfer options
+      let setFileTransferOptions = function(fileToken, uploadServletUrl) {
+        fileTransfer = {
+          fileToken: fileToken,
+          uploadServletUrl: uploadServletUrl
+        };
+      };
+
       // Detect escalationOffer content
       chatbot.subscriptions.onDisplayChatbotMessage(function(messageData, next) {
         if ('attributes' in messageData && messageData.attributes !== null && 'DIRECT_CALL' in messageData.attributes && messageData.attributes.DIRECT_CALL === 'escalationOffer') {
@@ -508,7 +561,6 @@
             endChatSession(true, 'Reason: Timeout. No agent answer');
             chatbotMessage.noAgents();
           }, config.agentWaitTimeout * 1000);
-
           initSalesforceConnection(escalationData)
         }
 
@@ -563,6 +615,59 @@
         } else {
           return next(optionData);
         }
+      });
+
+      // Make the process to upload selected file
+      chatbot.subscriptions.onUploadMedia(function(media, next) {
+        chatbotMessage.uploadingFile();
+        
+        let formData = new FormData();
+        formData.append("file", media.file);
+        formData.append('fileToken', fileTransfer.fileToken );
+        formData.append('uploadServletUrl', fileTransfer.uploadServletUrl );
+
+        let options = {
+          type: 'POST',
+          url: path.sendFile,
+          data: formData,
+          headers: { 'X-Adapter-Session-Id': AgentSession.get(flag.adapterSessionId) }
+        };
+        let xmlhttp = new XMLHttpRequest();
+    
+        xmlhttp.onload = function() {
+          dd('Request response', xmlhttp.status, xmlhttp.response);
+          let responseBody = xmlhttp.response ? JSON.parse(xmlhttp.response) : {};
+          if (responseBody.success !== undefined && responseBody.success !== null) {
+            if (responseBody.success) chatbotMessage.fileUploaded();
+            else chatbotMessage.fileUploadError();
+          }
+          else {
+            chatbotMessage.fileUploadError();
+            chatbot.actions.hideUploadMediaButton();
+          }
+        };
+  
+        xmlhttp.onerror = function() {
+          dd('Request ERROR response', xmlhttp.status, xmlhttp.response);
+          chatbot.actions.hideUploadMediaButton();
+          chatbotMessage.fileUploadError();
+        };
+        xmlhttp.open(options.type, options.url, true);
+
+        xmlhttp.timeout = (config.sendMessagesTimeout + 20) * 1000; // 50 seconds
+
+        xmlhttp.ontimeout = function(e) {
+          chatbotMessage.fileUploadError();
+        };
+
+        for (let key in options.headers) {
+          if (options.headers.hasOwnProperty(key)) {
+            xmlhttp.setRequestHeader(key, options.headers[key]);
+          }
+        }
+
+        xmlhttp.send(options.data || null);
+        next();
       });
 
       // Debug function

@@ -80,6 +80,7 @@ class InitController extends Controller
             'Authorization'     => $request->getHeader('Authorization'),
             'X-Inbenta-Key'     => $request->getHeader('X-Inbenta-Key'),
             'X-Inbenta-Session' => $request->getHeader('X-Inbenta-Session'),
+            'Origin'            => $request->getHeader('Origin')
         ]);
 
         return $inbentaSession->process($checkUrl);
@@ -137,21 +138,20 @@ class InitController extends Controller
 
         parent::validateRequest($request);
 
-         if (!$request->getHeader('Authorization')) {
-             throw $this->error(AppEx::E_AUTHORIZATION_REQUIRED);
-         }
+        if (!$request->getHeader('Authorization')) {
+            throw $this->error(AppEx::E_AUTHORIZATION_REQUIRED);
+        }
 
-         if (!$request->getHeader('Origin')) {
-             throw $this->error(AppEx::E_ORIGIN_REQUIRED);
-         }
+        if (!$request->getHeader('Origin')) {
+            throw $this->error(AppEx::E_ORIGIN_REQUIRED);
+        }
 
-         if (!$request->getHeader('X-Inbenta-Key')) {
-             throw $this->error(AppEx::E_INBENTA_KEY_REQUIRED);
-         }
+        if (!$request->getHeader('X-Inbenta-Key')) {
+            throw $this->error(AppEx::E_INBENTA_KEY_REQUIRED);
+        }
 
-         if (!$request->getHeader('X-Inbenta-Session')) {
-             throw $this->error(AppEx::E_INBENTA_SESSION_REQUIRED);
-         }
-
+        if (!$request->getHeader('X-Inbenta-Session')) {
+            throw $this->error(AppEx::E_INBENTA_SESSION_REQUIRED);
+        }
     }
 }

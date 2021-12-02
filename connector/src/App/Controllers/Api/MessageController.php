@@ -15,6 +15,9 @@ use App\Model\Varien\DataObject;
 
 class MessageController extends Controller
 {
+
+    protected $uploadBaseUrl = 'salesforce.com/services/liveagent/file';
+
     /**
      * Main message/receive action
      * @throws \Exception
@@ -48,14 +51,14 @@ class MessageController extends Controller
                 if ($value instanceof DataObject) {
 
                     switch ($value->getData('status')) {
-                        // just get value from locker and send it to client
+                            // just get value from locker and send it to client
                         case SflaMessages::STATUS_COMPLETE:
                             $this->getResponse()
                                 ->setSuccess(true)
                                 ->setData('code', $value->getData('code'))
                                 ->setBody($value->getData());
                             return;
-                        // all secondary transaction should subscribe to master-request response
+                            // all secondary transaction should subscribe to master-request response
                         case SflaMessages::STATUS_PROCESSING:
                             $redis->subscribe(['new-message' . $key], [$this, 'subscribeCallback']);
                             return;
@@ -107,7 +110,6 @@ class MessageController extends Controller
                 default:
                     $redis->del($key);
             }
-
         } catch (AppEx $ex) {
             $this->getResponse()
                 ->setSuccess(false)
@@ -157,9 +159,9 @@ class MessageController extends Controller
         $messages = $this->getRequest()->getBody();
 
         $messagesList = $messages->getData();
-        foreach($messagesList as $i=>$m)
-        {
-        	$messagesList[$i]['object']['text'] = strip_tags($m['object']['text']);
+        foreach ($messagesList as $i => $m) {
+            if (isset($m['object']['text']))
+                $messagesList[$i]['object']['text'] = strip_tags($m['object']['text']);
         }
 
         if ($messages->getData() < 1) {
@@ -199,10 +201,11 @@ class MessageController extends Controller
                 case 'ChatEnd':
                     try {
                         $redis = new Redis();
-								        $redis = $redis->getRedisClient();
+                        $redis = $redis->getRedisClient();
                         $keys = $redis->keys(Session::getSessionId() . "__*");
                         $redis->del($keys);
-                    } catch (\Exception $es) {}
+                    } catch (\Exception $es) {
+                    }
                     if (!Session::get('sflaKey') || !Session::get('sflaAffinityToken')) {
                         $this->getResponse()
                             ->setData('code', 205)
@@ -222,7 +225,6 @@ class MessageController extends Controller
                 default:
                     $transaction = new \App\Model\Api\Sfla\Transaction\ChatMessage($requester);
                     $transaction->setRequest(json_encode(['text' => strip_tags($message->getData('object/text'))]));
-
             }
             $transaction->addHeaders($headers);
             $response = $transaction->process(Config::get('sfla.endpoint'));
@@ -249,5 +251,83 @@ class MessageController extends Controller
         if (!$request->getHeader('X-Adapter-Session-Id')) {
             throw new \Exception(AppEx::E_ADAPTER_SESSION_REQUIRED);
         }
+    }
+
+    /**
+     * Sends a file to Salesforce, from user to agent (requested by agent)
+     */
+    public function fileAction()
+    {
+        $postCurl = $this->checkUploadedFile();
+        if (count($postCurl) > 0) {
+
+            $ch = curl_init();
+            curl_setopt_array($ch, [
+                CURLOPT_URL => $this->fileUploadUrl(),
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_POSTFIELDS => $postCurl
+            ]);
+            $result = curl_exec($ch);
+            curl_close($ch);
+            @unlink($postCurl['file']->name);
+
+            if ($result) {
+                if ($result == 'Success') {
+                    $this->getResponse()
+                        ->setSuccess(true)
+                        ->setBody(['message' => $result]);
+                    return true;
+                }
+            }
+        }
+        $this->getResponse()
+            ->setSuccess(false)
+            ->setBody(['message' => 'upload_error']);
+    }
+
+    /**
+     * Check if file is uploaded correctly and return the array for curl
+     * @return array
+     */
+    protected function checkUploadedFile(): array
+    {
+        $fileName = $_FILES['file']['name'];
+        $fileDir = sys_get_temp_dir() . '/' . $_FILES['file']['name'];
+        if (move_uploaded_file($_FILES['file']['tmp_name'], $fileDir)) {
+            $mimetype = mime_content_type($fileDir);
+            return [
+                'file' => curl_file_create($fileDir, $mimetype, $fileName),
+                'filename' => $fileName
+            ];
+        }
+        return [];
+    }
+
+    /**
+     * Creates the url for upload file
+     * @return string $uploadUrl
+     */
+    protected function fileUploadUrl(): string
+    {
+        $chatKey = explode("!", Session::get('sflaKey'))[0];
+        $request = $this->getRequest()->getPost();
+        $fileToken = isset($request['fileToken']) ? $request['fileToken'] : '';
+        $uploadUrl = isset($request['uploadServletUrl']) ? $this->validateUploadUrl($request['uploadServletUrl']) : '';
+        $uploadUrl .= '?orgId=' . urlencode(Config::get('sfla.organizationId'));
+        $uploadUrl .= '&chatKey=' . urlencode($chatKey);
+        $uploadUrl .= '&fileToken=' . urlencode($fileToken);
+        $uploadUrl .= '&encoding=UTF-8';
+        return $uploadUrl;
+    }
+
+    /**
+     * Check if given upload URL is valid
+     * @param string $url
+     * @return string $url
+     */
+    protected function validateUploadUrl(string $url)
+    {
+        if (strpos($url, $this->uploadBaseUrl) === false) throw $this->error(AppEx::E_UPLOAD_URL_ERROR);
+        return $url;
     }
 }

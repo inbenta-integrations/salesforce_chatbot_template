@@ -27,6 +27,7 @@ class Exception extends \Exception
     const E_SESSION_HAS_FINISHED = 'sflaKey and sflaAffinityToken should contain info, probably session was finished by another transaction';
     const E_LOCKER_HAS_UNDEFINED_STATUS = 'Locker has undefined status';
     const E_WRONG_LOCKER_TYPE = 'Value should be a DataObject type';
+    const E_UPLOAD_URL_ERROR = 'Upload URL error';
     /**
      * @var string request/response json
      */

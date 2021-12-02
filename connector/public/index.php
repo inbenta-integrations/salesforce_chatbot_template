@@ -4,7 +4,8 @@
  * @author Inbenta <https://www.inbenta.com/>
  */
 
-define('PUBLIC_PATH', $_SERVER['DOCUMENT_ROOT']);
+$publicPath = str_replace("/public", "", getcwd());
+define('PUBLIC_PATH', $publicPath);
 define('APP_ROOT', PUBLIC_PATH . "/src");
 
 use App\Facade\Request;
@@ -13,7 +14,7 @@ use App\Facade\Router;
 use App\Model\Config;
 use Utils\Logger;
 
-require __DIR__.'/../vendor/autoload.php';
+require __DIR__ . '/../vendor/autoload.php';
 
 $request = new Request();
 $response = new Response();
@@ -30,13 +31,14 @@ $router->post('/init', "App\Controllers\Api\InitController@initAction");
 $router->get('/availability', "App\Controllers\Api\AvailabilityController@checkAction");
 $router->get('/message/receive', "App\\Controllers\\Api\\MessageController@getAction");
 $router->post('/message/send', "App\\Controllers\\Api\\MessageController@postAction");
+$router->post('/message/file', "App\\Controllers\\Api\\MessageController@fileAction");
 
-$router->before('OPTIONS', '.*', function() {
+$router->before('OPTIONS', '.*', function () {
     http_response_code(200);
     die();
 });
 
-$router->set404(function() {
+$router->set404(function () {
     echo "Page not found";
 });
 
