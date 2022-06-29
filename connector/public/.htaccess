@@ -1,8 +1,8 @@
 RewriteEngine on
 RewriteOptions inherit
 
-Header set Access-Control-Allow-Origin "*"
-Header add Access-Control-Allow-Headers "origin, x-requested-with, content-type, authorization, x-inbenta-key, x-inbenta-session, x-liveagent-sequence, x-adapter-session-id"
+#Header set Access-Control-Allow-Origin "*"
+#Header add Access-Control-Allow-Headers "origin, x-requested-with, content-type, authorization, x-inbenta-key, x-inbenta-session, x-liveagent-sequence, x-adapter-session-id"
 
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d

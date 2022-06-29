@@ -4,6 +4,14 @@
  * @author Inbenta <https://www.inbenta.com/>
  */
 
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: GET,POST,OPTIONS');
+header("Access-Control-Allow-Headers: Origin, X-Requested-With, Content-Type, Accept, Authorization, X-Inbenta-Key, X-Inbenta-Session, X-Liveagent-Sequence, X-Adapter-Session-Id");
+
+if ($_SERVER['REQUEST_METHOD'] == "OPTIONS") {
+    die;
+}
+
 $publicPath = str_replace("/public", "", getcwd());
 define('PUBLIC_PATH', $publicPath);
 define('APP_ROOT', PUBLIC_PATH . "/src");
