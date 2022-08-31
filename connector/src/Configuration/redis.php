@@ -6,6 +6,6 @@
  */
 
 return [
-    'url' => '',
-    'ttl' => 3600,
+    'url' => $_ENV['REDIS_URL'] ?? '',
+    'ttl' => $_ENV['REDIS_TTL'] ?? 3600
 ];

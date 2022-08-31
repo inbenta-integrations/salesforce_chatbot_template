@@ -35,7 +35,10 @@
           waitingForFile: 'Agent is requesting you a file (click on link icon)',
           uploadingFile: 'Uploading file, please wait',
           fileUploaded: 'File uploaded correctly',
-          fileUploadError: 'Error on file upload'
+          fileUploadError: 'Error on file upload',
+          caseCreated: 'A new case was created',
+          caseNumber: 'case number',
+          caseError: 'Error on create a case, try again later'
         }
       }
 
@@ -50,7 +53,8 @@
         getMessage: domain + '/message/receive',
         sendMessage: domain + '/message/send',
         availability: domain + '/availability',
-        sendFile: domain + '/message/file'
+        sendFile: domain + '/message/file',
+        createCase: domain + '/createCase'
       };
 
       // File transfer variables
@@ -168,7 +172,7 @@
         for (let property in source) {
           if (source.hasOwnProperty(property)) {
             if (destination[property] && (typeof (destination[property]) === 'object') &&
-               (destination[property].toString() === '[object Object]') && source[property]) {
+              (destination[property].toString() === '[object Object]') && source[property]) {
               extend(destination[property], source[property]);
             } else {
               destination[property] = source[property];
@@ -537,13 +541,73 @@
         };
       };
 
+      let createCase = function(formData) {
+        let headers = {
+          'Content-Type': 'application/json',
+        };
+
+        let options = {
+          type: 'POST',
+          url: path.createCase,
+          headers: headers,
+          data: JSON.stringify(formData)
+        };
+        let callback = function(code, response) {
+          let messageResponse = defaultSalesforceConf.labels.caseError;
+          if (code === 200) {
+            if (response.success) {
+              messageResponse = defaultSalesforceConf.labels.caseCreated;
+              if (response.case !== undefined || response.case !== '') {
+                messageResponse += ' (' + defaultSalesforceConf.labels.caseNumber + ': ' + response.case + ')';
+              }
+            } else {
+              messageResponse = response.data.message !== undefined ? response.data.message : messageResponse
+            }
+          }
+          chatbot.actions.hideChatbotActivity();
+          chatbot.actions.enableInput();
+          chatbot.actions.displaySystemMessage({
+            message: messageResponse
+          });
+        };
+
+        requestCall(options, callback);
+      };
+
+      let getTranscript = function() {
+        let conversation = chatbot.actions.getConversationTranscript();
+        let fullConversation = '';
+        for (let message of conversation) {
+          if (message.message !== '') {
+            fullConversation += message.user === 'assistant' ? 'ChatBot' : 'Client';
+            fullConversation += ': ' + message.message.trim() + "\n";
+          }
+        }
+        if (fullConversation !== '') {
+          fullConversation = "*TRANSCRIPT*\n\n" + fullConversation;
+        }
+        return fullConversation;
+      }
+
       // Detect escalationOffer content
       chatbot.subscriptions.onDisplayChatbotMessage(function(messageData, next) {
         if ('attributes' in messageData && messageData.attributes !== null && 'DIRECT_CALL' in messageData.attributes && messageData.attributes.DIRECT_CALL === 'escalationOffer') {
           checkAgentsAvailability(function(response) {
             chatbot.api.addVariable('agents_available', response.isAvailable.toString());
           });
+        } else if ('actions' in messageData && messageData.actions.length > 0) {
+          for (let i = 0; i < messageData.actions.length; i++) {
+            if (!("parameters" in messageData.actions[i])) continue;
+            if (!("callback" in messageData.actions[i].parameters)) continue;
 
+            if (messageData.actions[i].parameters.callback == 'createTicket') {
+              chatbot.actions.disableInput();
+              chatbot.actions.displayChatbotActivity();
+              let formData = messageData.actions[i].parameters.data;
+              formData.TRANSCRIPT = getTranscript();
+              createCase(formData);
+            }
+          }
         }
         return next(messageData);
       });
@@ -620,11 +684,11 @@
       // Make the process to upload selected file
       chatbot.subscriptions.onUploadMedia(function(media, next) {
         chatbotMessage.uploadingFile();
-        
+
         let formData = new FormData();
         formData.append("file", media.file);
-        formData.append('fileToken', fileTransfer.fileToken );
-        formData.append('uploadServletUrl', fileTransfer.uploadServletUrl );
+        formData.append('fileToken', fileTransfer.fileToken);
+        formData.append('uploadServletUrl', fileTransfer.uploadServletUrl);
 
         let options = {
           type: 'POST',
@@ -633,7 +697,7 @@
           headers: { 'X-Adapter-Session-Id': AgentSession.get(flag.adapterSessionId) }
         };
         let xmlhttp = new XMLHttpRequest();
-    
+
         xmlhttp.onload = function() {
           dd('Request response', xmlhttp.status, xmlhttp.response);
           let responseBody = xmlhttp.response ? JSON.parse(xmlhttp.response) : {};
@@ -646,7 +710,7 @@
             chatbot.actions.hideUploadMediaButton();
           }
         };
-  
+
         xmlhttp.onerror = function() {
           dd('Request ERROR response', xmlhttp.status, xmlhttp.response);
           chatbot.actions.hideUploadMediaButton();

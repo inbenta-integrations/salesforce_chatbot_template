@@ -5,10 +5,18 @@
  */
 
 return [
-    'endpoint'       => '', //Do not include "/chat/rest/" in the endpoint string
-    'organizationId' => '',
-    'deploymentId'   => '',
-    'buttonId'       => '',
+    'endpoint' => $_ENV['ENDPOINT'] ?? '', //Do not include "/chat/rest/" in the endpoint string
+    'organizationId' => $_ENV['ORGANIZATION_ID'] ?? '',
+    'deploymentId' => $_ENV['DEPLOYMENT_ID'] ?? '',
+    'buttonId' => $_ENV['BUTTON_ID'] ?? '',
+
+    // API config
+    'api_endpoint' => $_ENV['API_ENDPOINT'] ?? '',
+    'api_version' => $_ENV['API_VERSION'] ?? '55.0',
+    'client_id' => $_ENV['CLIENT_ID'] ?? '',
+    'client_secret' => $_ENV['CLIENT_SECRET'] ?? '',
+    'username' => $_ENV['USERNAME'] ?? '',
+    'password' => $_ENV['PASSWORD'] ?? '',
 
     // Variables names from Backstage and its assignation to Salesforce
     'variablesContact' => [ //FirstName, LastName and Email are mandatory

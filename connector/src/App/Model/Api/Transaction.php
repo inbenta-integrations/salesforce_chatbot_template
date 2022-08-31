@@ -16,7 +16,7 @@ use App\Model\Session;
 abstract class Transaction
 {
     /**
-     * Reqiest method, POST, GET etc.
+     * Request method, POST, GET etc.
      */
     const METHOD = '';
 
@@ -151,7 +151,6 @@ abstract class Transaction
             $responseBody = json_decode($this->getResponse()->getBody(), true);
             if (!$responseBody)
                 $responseBody = ['code' => $this->getResponse()->getCode(), 'body' => $this->getResponse()->getBody()];
-
         } catch (\Exception $ex) {
             throw $ex;
         }
